@@ -372,7 +372,7 @@ class GameBoard
 		{
 			for(let j = 0; j < this.height; j++)
 			{
-				if(this.grabTile(new Coordinate(0,0)) == tile)
+				if(this.grabTile(new Coordinate(i,j)) == tile)
 				{
 					return true;
 				}
@@ -539,7 +539,7 @@ class BoardPossibility
 		let upperLeftPathTwo = this.calculateOrderScore(this.unfoldBoardHorizontal(false, false), rVal);
 		let upperRightPathOne = this.calculateOrderScore(this.unfoldBoardVertical(true, false), rVal);
 		let upperRightPathTwo = this.calculateOrderScore(this.unfoldBoardHorizontal(false, true), rVal);
-		let lowerLeftPathOne = this.calculateOrderScore(this.unfoldBoardVertical(true, true), rVal);
+		let lowerLeftPathOne = this.calculateOrderScore(this.unfoldBoardVertical(false, true), rVal);
 		let lowerLeftPathTwo = this.calculateOrderScore(this.unfoldBoardHorizontal(true, false), rVal);
 		let lowerRightPathOne = this.calculateOrderScore(this.unfoldBoardVertical(true, true), rVal);
 		let lowerRightPathTwo = this.calculateOrderScore(this.unfoldBoardHorizontal(true, true), rVal);
@@ -623,7 +623,7 @@ function makeBestMove(curBoard, numIter, depth, evaluationSettings)
 {
 	let moveDatas = evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings);
 	let bestMove = new MoveData(Direction.NONE);
-	
+	console.log(moveDatas)
 	// Select first valid move data
 	let init = 0;
 	
