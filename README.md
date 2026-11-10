@@ -12,5 +12,7 @@ There is also webpage demonstration included in the repository. You can try it [
 Note: webpage might become unresponsive if path evaluation iteration is too high. Be careful.
 
 To do:
-- Optimization (alpha-beta pruning).
-- Reduce repeated code.
+- Transition to proper expectimax decision model.
+- Finetune heuristics to be more effective.
+- fix makeBestMove to better handle a case where there's no more valid move.
+	- Low priority fix because game over state (move possible?) is checked first before calling makeBestMove.
