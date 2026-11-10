@@ -623,7 +623,7 @@ function makeBestMove(curBoard, numIter, depth, evaluationSettings)
 {
 	let moveDatas = evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings);
 	let bestMove = new MoveData(Direction.NONE);
-	console.log(moveDatas)
+	
 	// Select first valid move data
 	let init = 0;
 	
