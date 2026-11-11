@@ -401,6 +401,7 @@ class BoardPossibility
 	{
 		this.gameBoard = GameBoard.copyBoard(gameBoard);
 		this.movementDirection = direction;
+		this.isValidMove = this.gameBoard.move(direction);
 		
 		this.absoluteScore = this.gameBoard.score;
 		this.numEmptyTiles = this.gameBoard.emptyTileTable.length;
