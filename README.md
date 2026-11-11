@@ -14,5 +14,3 @@ Note: webpage might become unresponsive if path evaluation iteration is too high
 To do:
 - Transition to proper expectimax decision model.
 - Finetune heuristics to be more effective.
-- fix makeBestMove to better handle a case where there's no more valid move.
-	- Low priority fix because game over state (move possible?) is checked first before calling makeBestMove.
