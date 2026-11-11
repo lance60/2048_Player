@@ -230,7 +230,7 @@ class GameBoard
 	}
 	
 	// Not sure if combining all move function into one is good. Looks overloaded.
-	move(direction, skipSpawn = false)
+	move(direction)
 	{
 		if(this.isMovementPossible(direction))
 		{
@@ -306,14 +306,8 @@ class GameBoard
 			}
 			
 			this.generateEmptyTileTable();
-			
-			if(!skipSpawn)
-			{
-				this.spawnTile();
-				this.moves++;
-			}
-			
-
+			this.spawnTile();
+			this.moves++;
 			
 			return true;
 		}
