@@ -20,22 +20,21 @@ class Coordinate
 }
 
 const Direction = {
-		NONE: {index: -1, string: "None"},
-		UP: {index: 0, string: "Up"},
-		DOWN: {index: 1, string: "Down"},
-		LEFT: {index: 2, string: "Left"},
-		RIGHT: {index: 3, string: "Right"},
-		LIST: [this.UP, this.DOWN, this.LEFT, this.RIGHT]
+		NONE: Object.freeze({index: -1, string: "None"}),
+		UP: Object.freeze({index: 0, string: "Up"}),
+		DOWN: Object.freeze({index: 1, string: "Down"}),
+		LEFT: Object.freeze({index: 2, string: "Left"}),
+		RIGHT: Object.freeze({index: 3, string: "Right"}),
 	};
 Object.freeze(Direction);
 
-const DIRECTION_LIST = [Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT];
+const DIRECTION_LIST = Object.freeze([Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT]);
 
 class MoveData
 {
 	constructor(direction)
 	{
-		this.score = Number.MIN_VALUE;
+		this.score = 0;
 		this.isValidMove = false;
 		this.direction = direction;
 	}
@@ -81,29 +80,36 @@ class GameBoard
 		this.lastSpawnedTileCoord = undefined;
 	}
 	
-	copyState(gameBoard)
+	static copyBoard(gameBoard)
 	{
-		this.width = gameBoard.width;
-		this.height = gameBoard.height;
-		this.score = gameBoard.score;
-		this.moves = gameBoard.moves;
+		let boardCopy = Object.create(GameBoard.prototype)
 		
-		this.boardState = [];
+		boardCopy.width = gameBoard.width;
+		boardCopy.height = gameBoard.height;
+		boardCopy.score = gameBoard.score;
+		boardCopy.moves = gameBoard.moves;
+		boardCopy.cumulativeProbability = gameBoard.cumulativeProbability;
+		boardCopy.hasWon = gameBoard.hasWon;
+		boardCopy.lastSpawnedTileCoord = gameBoard.lastSpawnedTileCoord;
 		
-		for(let i = 0; i < this.width; i++)
+		boardCopy.boardState = [];
+		
+		for(let i = 0; i < boardCopy.width; i++)
 		{
-			this.boardState[i] = [];
+			boardCopy.boardState[i] = [];
 		}
 		
-		for(let i = 0; i < this.width; i++)
+		for(let i = 0; i < boardCopy.width; i++)
 		{
-			for(let j = 0; j < this.height; j++)
+			for(let j = 0; j < boardCopy.height; j++)
 			{
-				this.boardState[i][j] = gameBoard.boardState[i][j];
+				boardCopy.boardState[i][j] = gameBoard.boardState[i][j];
 			}
 		}
 		
-		this.generateEmptyTileTable();
+		boardCopy.generateEmptyTileTable();
+		
+		return boardCopy
 	}
 	
 	initializeBoard()
@@ -139,13 +145,12 @@ class GameBoard
 	
 	generateTileValue()
 	{
-		// https://stackoverflow.com/questions/25991198/game-design-theory-loot-drop-chance-spawn-rate
-		let randomValue = Math.round(Math.random() * this.cumulativeProbability);
+		let randomValue = Math.floor(Math.random() * this.cumulativeProbability);
 		let rangeMin = 0
 		
 		for(let i = 0; i < TILE_SPAWN_TABLE.length - 1; i++)
 		{
-			let rangeMax = TILE_SPAWN_RATE[i];
+			let rangeMax = rangeMin + TILE_SPAWN_RATE[i];
 			
 			if(randomValue >= rangeMin && randomValue < rangeMax)
 			{
@@ -225,7 +230,7 @@ class GameBoard
 	}
 	
 	// Not sure if combining all move function into one is good. Looks overloaded.
-	move(direction)
+	move(direction, skipSpawn = false)
 	{
 		if(this.isMovementPossible(direction))
 		{
@@ -301,8 +306,14 @@ class GameBoard
 			}
 			
 			this.generateEmptyTileTable();
-			this.spawnTile();
-			this.moves++;
+			
+			if(!skipSpawn)
+			{
+				this.spawnTile();
+				this.moves++;
+			}
+			
+
 			
 			return true;
 		}
@@ -388,12 +399,10 @@ class BoardPossibility
 {
 	constructor(gameBoard, direction, evaluationSettings)
 	{
-		this.gameBoard = new GameBoard(gameBoard.width, gameBoard.height);
-		this.gameBoard.copyState(gameBoard);
+		this.gameBoard = GameBoard.copyBoard(gameBoard);
 		this.movementDirection = direction;
-		this.isValidMove = this.gameBoard.move(direction);
 		
-		this.scoreDifference = this.gameBoard.score - gameBoard.score;
+		this.absoluteScore = this.gameBoard.score;
 		this.numEmptyTiles = this.gameBoard.emptyTileTable.length;
 		this.moveScore = this.calculateMoveScore(evaluationSettings);
 	}
@@ -427,18 +436,21 @@ class BoardPossibility
 		{
 			for(let j = 0; j < this.gameBoard.height; j++)
 			{
-				let adjacentTiles = [
-					this.gameBoard.grabTile(new Coordinate(i, j - 1)),
-					this.gameBoard.grabTile(new Coordinate(i, j + 1)),
-					this.gameBoard.grabTile(new Coordinate(i - 1, j)),
-					this.gameBoard.grabTile(new Coordinate(i + 1, j))
-				];
+				let curTile = this.gameBoard.grabTile(new Coordinate(i, j));
 				
-				for(let k = 0; k < adjacentTiles.length; k++)
+				if(curTile > 0)
 				{
-					if(adjacentTiles[k] != undefined)
+					let adjacentTiles = [
+						this.gameBoard.grabTile(new Coordinate(i + 1, j)),
+						this.gameBoard.grabTile(new Coordinate(i, j + 1))
+					];
+					
+					for(let k = 0; k < adjacentTiles.length; k++)
 					{
-						penalty += Math.abs(this.gameBoard.grabTile(new Coordinate(i,j)) - adjacentTiles[k]);
+						if(adjacentTiles[k] != undefined && adjacentTiles[k] > 0)
+						{
+							penalty += Math.abs(Math.log2(curTile) - Math.log2(adjacentTiles[k]));
+						}
 					}
 				}
 			}
@@ -549,7 +561,7 @@ class BoardPossibility
 	
 	calculateMoveScore(evaluationSettings)
 	{
-		return (this.scoreDifference * evaluationSettings.scoreWeight) + 
+		return (this.absoluteScore * evaluationSettings.scoreWeight) + 
 		(this.numEmptyTiles * evaluationSettings.emptyTileWeight) + 
 		(this.calculateMonotonicity(evaluationSettings.monotonicityRVal) * evaluationSettings.monotonicityWeight) - 
 		(this.calculateRoughnessPenalty() * evaluationSettings.roughnessPenaltyWeight);
@@ -573,23 +585,39 @@ function generateFutureStates(curBoard, evaluationSettings)
 
 function evaluatePossibilityPotential(boardPossibility, depth, evaluationSettings)
 {
-	if(depth <= 0 || !boardPossibility.isValidMove)
+	if(!boardPossibility.isValidMove)
+	{
+		return -Infinity;
+	}
+	
+	if(depth <= 0)
 	{
 		return boardPossibility.moveScore;
 	}
 	
 	let futurePossibilities = generateFutureStates(boardPossibility.gameBoard, evaluationSettings);
 	
-	return boardPossibility.moveScore + 
-			Math.max(evaluatePossibilityPotential(futurePossibilities[Direction.UP.index], depth - 1, evaluationSettings),
-					evaluatePossibilityPotential(futurePossibilities[Direction.DOWN.index], depth - 1, evaluationSettings),
-					evaluatePossibilityPotential(futurePossibilities[Direction.LEFT.index], depth - 1, evaluationSettings),
-					evaluatePossibilityPotential(futurePossibilities[Direction.RIGHT.index], depth - 1, evaluationSettings));
+	let possibilityPotential = -Infinity;
+	
+	for(let i = 0; i < futurePossibilities.length; i++)
+	{
+		let currentPossibilityPotential = evaluatePossibilityPotential(futurePossibilities[i], depth - 1, evaluationSettings);
+		
+		if(currentPossibilityPotential > possibilityPotential)
+		{
+			possibilityPotential = currentPossibilityPotential;
+		}
+	}
+	
+	return possibilityPotential;
 }
 
 // Evaluate move score based on different ways the tile could spawn after each move
 function evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings)
 {
+	// 0 and negative numIter doesn't make sense.
+	if(numIter < 1) numIter = 1;
+	
 	let moveDatas = [
 		new MoveData(Direction.UP),
 		new MoveData(Direction.DOWN),
@@ -621,9 +649,13 @@ function evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings
 
 function makeBestMove(curBoard, numIter, depth, evaluationSettings)
 {
-	let moveDatas = evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings);
-	let bestMove = new MoveData(Direction.NONE);
+	if(curBoard.isGameOver())
+	{
+		return Direction.NONE;
+	}
 	
+	let moveDatas = evaluateWeightedMoveScores(curBoard, numIter, depth, evaluationSettings);
+
 	// Select first valid move data
 	let init = 0;
 	
@@ -632,7 +664,13 @@ function makeBestMove(curBoard, numIter, depth, evaluationSettings)
 		init++;
 	}
 	
-	bestMove = moveDatas[init];
+	// Guard against numIter < 1
+	if(init >= moveDatas.length)
+    {
+		return Direction.NONE;
+    }
+	
+	let bestMove = moveDatas[init];
 	
 	for(let i = init + 1; i < moveDatas.length; i++)
 	{
